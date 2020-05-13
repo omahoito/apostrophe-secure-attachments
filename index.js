@@ -54,6 +54,13 @@ module.exports = {
         if (!attachment) {
           throw 'notfound';
         }
+        // Before an attachment is not attached to its first doc, only the user that uploaded it may access it, if the
+        // user is known. This blocks eg. attachments being accidentally disclosed before the attachment is attached to a document.
+        if (!attachment.utilized && attachment.ownerId) {
+          if (!req.user || req.user._id !== attachment.ownerId) {
+            throw 'forbidden'
+          }
+        }
         if (attachment.utilized) {
 
           // Once an attachment is attached to its first doc, the permissions
