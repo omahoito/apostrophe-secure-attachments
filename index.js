@@ -26,9 +26,7 @@ module.exports = {
     };
  
     self.addSecureUploadsRoute = function() {
-      self.apos.app.get('/secure-uploads/*', self.secureAttachmentMiddleware, function(req, res) {
-        return self.servePath(req, res);
-      });
+      self.apos.app.get('/secure-uploads/*', self.secureAttachmentMiddleware, self.servePath, self.handleError);
     };
 
     self.secureAttachmentMiddleware = async function(req, res, next) {
@@ -88,14 +86,7 @@ module.exports = {
         // OK to let it through
         return next();
       } catch (e) {
-        if (e === 'notfound') {
-          return res.status(404).send('not found');
-        } if (e === 'forbidden') {
-          return res.status(403).send('forbidden');
-        } else {
-          self.apos.utils.error(e);
-          return res.status(500).send('error');
-        }
+        next(e)
       }
     };
 
@@ -107,12 +98,23 @@ module.exports = {
     // that is visible in the URL so folks don't just go straight
     // to the bucket, etc.
 
-    self.servePath = function(req, res) {
+    self.servePath = util.callbackify(async function(req, res) {
       let path = self.options.uploadfs.uploadsPath + '/' + req.params[0];
       // Do not allow relative paths to escape the intended folder
       path = path.replace(/\.\./g, '');
       return res.sendFile(require('path').resolve(path));
     };
+    });
 
+    self.handleError = function (e, req, res, next) {
+      if (e === 'notfound') {
+        return res.status(404).send('not found');
+      } if (e === 'forbidden') {
+        return res.status(403).send('forbidden');
+      } else {
+        self.apos.utils.error(e);
+        return res.status(500).send('error');
+      }
+    }
   }
 };
